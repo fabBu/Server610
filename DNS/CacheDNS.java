@@ -1,3 +1,4 @@
+package dns;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileReader;

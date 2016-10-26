@@ -1,4 +1,5 @@
-﻿import java.io.ByteArrayInputStream;
+﻿package dns;
+import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;

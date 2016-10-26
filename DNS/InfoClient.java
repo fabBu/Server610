@@ -1,3 +1,4 @@
+package dns;
 import java.net.InetAddress;
 
 /*
