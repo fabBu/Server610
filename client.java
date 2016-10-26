@@ -6,24 +6,59 @@ import java.net.*;
 public class client {
 
 	public static void main(String[] args) throws Exception {
-		String sentence;
-		String modifiedSentence;
-		System.out.println("Client");
-		
+		String sentence =null;
+
+		int port = 2016;
+		String server = "10.196.115.175";
+
+		PrintWriter toServerWriter = null;
+		BufferedReader fromServerReader = null;
+		Socket clientSocket =null;
+		System.out.println("Initialisation");
+
+
+
+		try{
+			if(args.length == 1)
+				server = args[0];
+		}
+		catch(NumberFormatException e ){
+			System.err.println("Port invalid");
+			System.exit(1);
+		}
 		// Get sentence from client
 		BufferedReader inFromUser = new BufferedReader( new InputStreamReader(System.in));
+
+		
+
+		try{
+			// Create connection to the server and send the sentence
+			clientSocket = new Socket(server, port);
+			fromServerReader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+			toServerWriter = new PrintWriter(clientSocket.getOutputStream(), true);
+
+			System.out.println("Connexion etablie");
+		}catch (IOException e ){
+			System.out.println(e);
+			System.exit(1);
+		}
+
+		System.out.print("phrase: ");
+
 		sentence = inFromUser.readLine();
-		
-		// Create connection to the server and send the sentence
-		Socket clientSocket = new Socket("10.196.115.175", 2016);
-		DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
-		outToServer.writeBytes(sentence + '\n');
-		
-		// Get modified sentence from the server
-		BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-		modifiedSentence = inFromServer.readLine();
-		System.out.println("SERVER: " + modifiedSentence);
+		while (sentence != null){
+			toServerWriter.println(sentence);
+
+			System.out.println("Phrase en majuscule ->  "+fromServerReader.readLine() );
+			System.out.print("phrase:" );
+			sentence = inFromUser.readLine();
+		}
+
+		fromServerReader.close();
+		inFromUser.close();
+		toServerWriter.close();
 		clientSocket.close();
+		System.exit(1);
 	}
 
 }
