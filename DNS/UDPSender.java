@@ -1,4 +1,3 @@
-package dns;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -6,80 +5,92 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 
-/**
- * Classe utilitaire pour envoyer des messages UDP a un destinataire.
- * Le destinataire est choisit lors de la creation de l'instance.
+	/**
+	 * Class utilitaire pour envoyer des messages UDP a un destinataire.
+	 * Le destinataire est choisit lors de la creation de l'instance.
+	 * L'envoi verifie que notre adresse est valide avant d'effectuer le traitement
+	 * @author lighta
+	 */
+	public class UDPSender  {
 
- * L'envoi verifie que notre adresse est valide avant d'effectuer le traitement.
- * 
- * @author lighta
- * @contributor Maxime Nadeau (AK83160) - Refactor du code
- */
-public class UDPSender  {
+	private final static int BUF_SIZE = 1024;
 	
-	// Le Socket utilisé pour l'envoi des messages
-	private DatagramSocket SendSocket;
-
-	// Le port spécifié pour la destination
-	private int portDestination = 53;
-	public int getPortDestination() { return portDestination; }
-
-	// L'adresse IP pour la destination des paquets
-	private InetAddress addrDestination;
-	public InetAddress getAddrDestination() { return addrDestination; }
+	private String dest_ip = null; //ip de reception
+	private int dest_port = 53;  // port de reception
+	private DatagramSocket SendSocket = null; //socket d'envoi
+	private InetAddress addr = null; //adresse de reception (format inet)
 	
 	/**
 	 * Contructor
-	 * NB : Si le socket d'envoi n'est pas specifié on essai d'en creer un
-	 * 
-	 * @param ipDestination Adresse ip ou envoyer le paquet
-	 * @param portDestination Port de destination du paquet
-	 * @param sendsocket Socket à utiliser pour l'envoi
+	 * @param destip = adresse ip ou envoyer le paquet
+	 * @param destport = port de destination du paquet
+	 * @param sendsocket : socket a utiliser pour l'envoi
+	 * NB : Si le socket d'envoi n'est pas specifier on essaye d'en creer un
 	 */
-	public UDPSender(String ipDestination, int portDestination, DatagramSocket sendsocket){
+	public UDPSender(String destip, int destport, DatagramSocket sendsocket){
 		try {
 			if(sendsocket == null) SendSocket = new DatagramSocket();
 			else SendSocket = sendsocket;
-			System.out.println("Construction d'un socket d'envoi sur port=" + SendSocket.getLocalPort());
+			System.out.println("Construction d'un socket d'envoi sur port="+SendSocket.getLocalPort());
 	
-			this.portDestination = portDestination;
-			
-			// Cree l'adresse de destination
-			this.addrDestination = InetAddress.getByName(ipDestination);
-		} catch (UnknownHostException | SocketException e) {
-			System.err.println("Impossible de créer l'utilitaire d'envoi UDP.");
+			this.dest_port = destport;
+			this.dest_ip = destip;
+			//cree l'adresse de destination
+			this.addr = InetAddress.getByName(dest_ip);
+		} catch (SocketException e) {
 			e.printStackTrace();
-			System.exit(-1);
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 	
 	/**
-	 * Constructor
-	 * NB : Si le socket d'envoi n'est pas specifié on essai dans creer un
-	 * 
-	 * @param ipDestination Adresse de destination
-	 * @param portDestination Port de destination
-	 * @param sendsocket Socket à utiliser pour l'envoi
+	 * Alternative constructor
+	 * @param address : adresse de destination (class Inet)
+	 * @param port : port de destination
+	 * @param sendsocket : socket a utiliser pour l'envoi
+	 * NB : Si le socket d'envoi n'est pas specifier on essaye dans creer un
 	 */
-	public UDPSender(InetAddress ipDestination, int portDestination, DatagramSocket sendsocket) {
+	public UDPSender(InetAddress address, int port, DatagramSocket sendsocket) {
 		try {
 			if(sendsocket == null) SendSocket = new DatagramSocket();
 			else SendSocket = sendsocket;
 			System.out.println("Construction d'un socket d'envoi sur port="+SendSocket.getLocalPort());
 
-			this.portDestination = portDestination;
-			this.addrDestination = ipDestination;
+			this.dest_port = port;
+			this.addr = address;
+			dest_ip = address.getHostAddress();
 		} catch (SocketException e) {
-			System.err.println("Impossible de créer l'utilitaire d'envoi UDP.");
+			// TODO Auto-generated catch block
 			e.printStackTrace();
-			System.exit(-1);
 		}
+	}
+
+	/**
+	 * @return l'adresse ip (string) specifier pour la destination
+	 */
+	public String getDest_ip() {
+		return dest_ip;
+	}
+
+	/**
+	 * @return le port specifier pour la destination
+	 */
+	public int getDest_port() {
+		return dest_port;
+	}
+
+	/**
+	 * @return l'adresse Inet specifier pour la destination
+	 */
+	public InetAddress getAddr() {
+		return addr;
 	}
 
 	/**
 	 * Effectue l'envoie du message a la destination specifie.
 	 * NB : Ne ferme pas le socket apres l'envoie
-	 * 
 	 * @param packet : data a envoyer (UDP)
 	 * @throws IOException
 	 */
@@ -90,17 +101,16 @@ public class UDPSender  {
 			throw new IOException("Invalid Socket for send (null)");
 		if(packet == null)
 			throw new IOException("Invalid Packet for send (null)");
-		
 		try {
 			//set la destination du packet
-			packet.setAddress(addrDestination);
-			packet.setPort(portDestination);
+			packet.setAddress(addr);
+			packet.setPort(dest_port);
 			//Envoi le packet
-			System.out.println("Sending packet to adr="+addrDestination.getHostAddress()+" port="+portDestination+ "srcport="+SendSocket.getLocalPort());
+			System.out.println("Sending packet to adr="+dest_ip+" port="+dest_port+ "srcport="+SendSocket.getLocalPort());
 			SendSocket.send(packet);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			System.err.println("Probleme a l'execution :");
-			e.printStackTrace();
+			e.printStackTrace(System.err);
 		}
 	}
 }

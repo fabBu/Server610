@@ -1,12 +1,11 @@
-﻿package dns;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 /**
  * Cette classe permet la reception d'un paquet UDP sur le port de reception
@@ -15,9 +14,8 @@ import java.util.HashMap;
  * Il s'agit d'un Thread qui ecoute en permanance pour ne pas affecter le
  * deroulement du programme
  * 
- * 
- * @author Maxime Nadeau (AK83160) - Refactor du code et correction de bugs.
- * @originalAuthor Maxime Bouchard (aj98150)
+ * @author Max
+ *
  */
 
 public class UDPReceiver extends Thread {
@@ -27,29 +25,19 @@ public class UDPReceiver extends Thread {
 	 * En-tete (12 octects) 
 	 * Question : l'adresse demande 
 	 * Reponse : l'adresse IP
-	 * Autorite : info sur le serveur d'autorite 
+	 * Autorite :
+	 * info sur le serveur d'autorite 
 	 * Additionnel : information supplementaire
 	 */
 
 	/**
 	 * Definition de l'En-tete d'un Packet UDP
 	 * --------------------------------------- 
-	 * 
-	 *   0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
-	 * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-	 * |                      ID                       |
-	 * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-	 * |QR    Opcode  |AA|TC|RD|RA|   Z    |   RCODE   |
-	 * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-	 * |                     QDCOUNT                   |
-	 * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-	 * |                     ANCOUNT                   |
-	 * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-	 * |                     NSCOUNT                   |
-	 * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-	 * |                     ARCOUNT                   |
-	 * +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-	 * 
+	 * Identifiant Parametres 
+	 * QDcount
+	 * Ancount
+	 * NScount 
+	 * ARcount
 	 * 
 	 * L'identifiant est un entier permettant d'identifier la requete. 
 	 * parametres contient les champs suivant : 
@@ -63,91 +51,109 @@ public class UDPReceiver extends Thread {
 	 * 		RCODE (4 bits) : code de retour.
 	 *                       0 : OK, 1 : erreur sur le format de la requete,
 	 *                       2: probleme du serveur, 3 : nom de domaine non trouve (valide seulement si AA), 
-	 *                       4 : requete non supportee, 5 : le serveur refuse de repondre (raisons de securite ou autres).
+	 *                       4 : requete non supportee, 5 : le serveur refuse de repondre (raisons de s�ecurite ou autres).
 	 * QDCount : nombre de questions. 
-	 * ANCount, NSCount, ARCount : nombre d'entrees dans les champs Reponse, Autorite,  Additionnel.
+	 * ANCount, NSCount, ARCount : nombre d�entrees dans les champs �Reponse�, Autorite,  Additionnel.
 	 */
-	
-	// La taille maximale d'un paquet IPv4 - À noter que l'application ne supporte pas les jumbogram IPv6
-	//		https://en.wikipedia.org/wiki/User_Datagram_Protocol#Packet_structure
-	protected final static int TAILLE_IPV4_MAX_THEORIQUE = 65535;
-	
-	// Le port  de redirection (par defaut)
-	protected final static int PORT_REDIRECTION_DEFAUT = 53;
-	
-	public UDPReceiver() { }
-	
-	public UDPReceiver(InetAddress serveurDNS, int Port) {
-		this.serveurDNS = serveurDNS;
-		this.port = Port;
-	}
 
-	// Détermine si notre serveur est en cours d'exécution
+	protected final static int BUF_SIZE = 1024;
+	protected String SERVER_DNS = null;//serveur de redirection (ip)
+	protected int portRedirect = 53; // port  de redirection (par defaut)
+	protected int port; // port de r�ception
+	private String adrIP = null; //bind ip d'ecoute
+	private String DomainName = "none";
+	private String DNSFile = null;
+	private boolean RedirectionSeulement = false;
+	
+	private class ClientInfo { //quick container
+		public String client_ip = null;
+		public int client_port = 0;
+	};
+	private HashMap<Integer, ClientInfo> Clients = new HashMap<>();
+	
 	private boolean stop = false;
 
-	// Adresse IP du serveur de redirection des requêtes DNS
-	protected InetAddress serveurDNS;
-	public InetAddress getServeurDNS() { return serveurDNS; }
-	public void setServeurDNS(InetAddress serveurDNS) { this.serveurDNS = serveurDNS; }
-
-	// Fichier contenant notre cache d'adresses DNS
-	private String fichierDNS;
-	public void setFichierDNS(String fichierDNS) { this.fichierDNS = fichierDNS; }
-
-	// Détermine si le serveur est en mode redirection seulement
-	private boolean redirectionSeulement = false;
-	public void setRedirectionSeulement(boolean redirectionSeulement) { this.redirectionSeulement = redirectionSeulement; }
-
-	// Le port sur lequel notre serveur écoute
-	protected int port;
-	public void setPort(int port) { this.port = port; }
 	
-	// L'adresse IP sur laquelle notre serveur écoute
-	private String adresseIP = null;
-	public String getAdresseIP() { return adresseIP; }
-	private void setAdresseIP(String adresseIP) { this.adresseIP = adresseIP; }
+	public UDPReceiver() {
+	}
+
+	public UDPReceiver(String SERVER_DNS, int Port) {
+		this.SERVER_DNS = SERVER_DNS;
+		this.port = Port;
+	}
 	
-	// HashMap permettant d'associer un identifiant de requête et sa provenance
-	private HashMap<Integer, InfoClient> clients = new HashMap<>();
 	
-	@Override
+	public void setport(int p) {
+		this.port = p;
+	}
+
+	public void setRedirectionSeulement(boolean b) {
+		this.RedirectionSeulement = b;
+	}
+
+	public String gethostNameFromPacket() {
+		return DomainName;
+	}
+
+	public String getAdrIP() {
+		return adrIP;
+	}
+
+	private void setAdrIP(String ip) {
+		adrIP = ip;
+	}
+
+	public String getSERVER_DNS() {
+		return SERVER_DNS;
+	}
+
+	public void setSERVER_DNS(String server_dns) {
+		this.SERVER_DNS = server_dns;
+	}
+
+
+
+	public void setDNSFile(String filename) {
+		DNSFile = filename;
+	}
+
 	public void run() {
 		try {
-			// *Creation d'un socket UDP
-			DatagramSocket serveur = new DatagramSocket(this.port);
+			DatagramSocket serveur = new DatagramSocket(this.port); // *Creation d'un socket UDP
+		
 			
-			// *Boucle de reception
+			// *Boucle infinie de recpetion
 			while (!this.stop) {
-				
-				// *Création de notre paquet UDP vide
-				byte[] buff = new byte[TAILLE_IPV4_MAX_THEORIQUE];
+				byte[] buff = new byte[0xFF];
 				DatagramPacket paquetRecu = new DatagramPacket(buff,buff.length);
 				System.out.println("Serveur DNS  "+serveur.getLocalAddress()+"  en attente sur le port: "+ serveur.getLocalPort());
 
-				// *Lecture d'un message dans notre file de réception du socket
+				// *Reception d'un paquet UDP via le socket
 				serveur.receive(paquetRecu);
-				byte[] donneesDNS = new byte[paquetRecu.getLength()];
-				System.arraycopy(paquetRecu.getData(), 0, donneesDNS, 0, paquetRecu.getLength());
 				
-				System.out.println("Paquet recu du " + paquetRecu.getAddress() + " du port: " + paquetRecu.getPort());
-				System.out.println("Contenu du paquet : " + Arrays.toString(donneesDNS));
+				System.out.println("paquet recu du  "+paquetRecu.getAddress()+"  du port: "+ paquetRecu.getPort());
 				
-				// *Creation d'un DataInputStream pour manipuler les bytes du paquet
-				DataInputStream fluxDonneesDNS = new DataInputStream(new ByteArrayInputStream(donneesDNS));
+
+				// *Creation d'un DataInputStream ou ByteArrayInputStream pour
+				// manipuler les bytes du paquet
+
+				ByteArrayInputStream TabInputStream = new ByteArrayInputStream (paquetRecu.getData());
 				
-				// TODO: Compléter le traitement d'un paquet requête (prevenant de notre client)
-				// ****** Si c'est un paquet requete *****
+				System.out.println(buff.toString());
+				
+				// ****** Dans le cas d'un paquet requete *****
 
 					// *Lecture du Query Domain name, a partir du 13 byte
-				
-				    // *Sauvegarde des informations client et de l'identifiant de la requete
-				    //  dans notre liste des requêtes en cours (variable HashMap "clients")
+
+					// *Sauvegarde du Query Domain name
+					
+					// *Sauvegarde de l'adresse, du port et de l'identifiant de la requete
 
 					// *Si le mode est redirection seulement
 						// *Rediriger le paquet vers le serveur DNS
 					// *Sinon
 						// *Rechercher l'adresse IP associe au Query Domain name
-						//  dans le fichier de correspondance de ce serveur					
+						// dans le fichier de correspondance de ce serveur					
 
 						// *Si la correspondance n'est pas trouvee
 							// *Rediriger le paquet vers le serveur DNS
@@ -155,35 +161,30 @@ public class UDPReceiver extends Thread {
 							// *Creer le paquet de reponse a l'aide du UDPAnswerPaquetCreator
 							// *Placer ce paquet dans le socket
 							// *Envoyer le paquet
-				            // *Retirer la requête de la liste des requêtes en cours
-
-				// TODO: Compléter le traitement d'un paquet de réponse (provenant de notre serveur de redirection)
-				// ****** Si c'est un paquet reponse *****
+				
+				// ****** Dans le cas d'un paquet reponse *****
 						// *Lecture du Query Domain name, a partir du 13 byte
 						
-						// *Passe par dessus Type et Class de notre requête
+						// *Passe par dessus Type et Class
 						
 						// *Passe par dessus les premiers champs du ressource record
-						//  pour arriver au ressource data qui contient l'adresse IP associe
+						// pour arriver au ressource data qui contient l'adresse IP associe
 						//  au hostname (dans le fond saut de 16 bytes)
 						
 						// *Capture de ou des adresse(s) IP (ANCOUNT est le nombre
-						//  de rï¿½ponses retournï¿½es)			
+						// de r�ponses retourn�es)			
 					
 						// *Ajouter la ou les correspondance(s) dans le fichier DNS
-						//  si elles ne y sont pas deja
+						// si elles ne y sont pas deja
 						
 						// *Faire parvenir le paquet reponse au demandeur original,
-						//  ayant emis une requete avec cet identifiant				
+						// ayant emis une requete avec cet identifiant				
 						// *Placer ce paquet dans le socket
 						// *Envoyer le paquet
-	                    // *Retirer la requête de la liste des requêtes en cours
 			}
-			
-			// *Fermeture de notre socket pour nettoyer les ressources
-			serveur.close();
-		} catch (IOException e) {
-			System.err.println("Problème à l'exécution :");
+//			serveur.close(); //closing server
+		} catch (Exception e) {
+			System.err.println("Probl�me � l'ex�cution :");
 			e.printStackTrace(System.err);
 		}
 	}

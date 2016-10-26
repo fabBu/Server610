@@ -1,17 +1,14 @@
-﻿package dns;
+﻿
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 
  /**
  * Application principale qui lance les autres processus
- * 
  * @author Maxime Bouchard
+ *
  */
+
 public class ServeurDNS {
-	
-	public static final String ADRESSE_DNS_DEFAUT = "10.162.8.51";
 	
 	public static void main(String[] args) {
 		
@@ -30,9 +27,9 @@ public class ServeurDNS {
 			System.exit(1);
 		}
 		
-		UDPReceiver receiverUDP = new UDPReceiver();
+		UDPReceiver UDPR = new UDPReceiver();
 		File f = null;	
-		receiverUDP.setPort(53);
+		UDPR.setport(53);
 		
 		/* cas ou l'argument = default
 		 Le serveur DNS de redirection par defaut est celui de l'ecole "10.162.8.51" 
@@ -42,31 +39,23 @@ public class ServeurDNS {
 		*/
 		if(args[0].equals("default")){
 			if (args.length <= 1) {
-				
-				try {
-					receiverUDP.setServeurDNS(InetAddress.getByName(ADRESSE_DNS_DEFAUT));
-				} catch (UnknownHostException e) {
-					System.err.println("Impossible de résoudre l'adresse " + ADRESSE_DNS_DEFAUT);
-					e.printStackTrace();
-					System.exit(-1);
-				}
-				
+				UDPR.setSERVER_DNS("10.162.8.51");
 				f = new File("DNSFILE.TXT");
 				if(f.exists()){
-					receiverUDP.setFichierDNS("DNSFILE.TXT");
+					UDPR.setDNSFile("DNSFILE.TXT");
 				}
 				else{
 					try {
 						f.createNewFile();
-						receiverUDP.setFichierDNS("DNSFILE.TXT");
+						UDPR.setDNSFile("DNSFILE.TXT");
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
 				}
-				receiverUDP.setRedirectionSeulement(false);
+				UDPR.setRedirectionSeulement(false);
 				
 				// et on lance le thread
-				receiverUDP.start();
+				UDPR.start();
 			}
 			else{
 				System.out.print("L'�x�cution par d�faut n'a pas d'autres arguments");
@@ -77,19 +66,18 @@ public class ServeurDNS {
 				if (args.length == 2) {
 					f = new File(args[1]);
 					if(f.exists()){
-						receiverUDP.setFichierDNS(args[1]);
+						UDPR.setDNSFile(args[1]);
 					}
 					else{
 						try {
 							f.createNewFile();
-							receiverUDP.setFichierDNS(args[1]);
+							UDPR.setDNSFile(args[1]);
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
 					}
-					CacheDNS cacheDNS = new CacheDNS(args[1]);
-					cacheDNS.listCorrespondingTable();
-					cacheDNS.close();
+					QueryFinder QF = new QueryFinder(args[1]);
+					QF.listCorrespondingTable();	
 				}
 				else if (args.length < 2){
 					System.out.println("vous n'avez pas indique le nom du fichier");
@@ -99,35 +87,27 @@ public class ServeurDNS {
 			}
 			else{
 				if (args.length == 3) { // cas ou les arguments sont: [IPserveurDNS] [cacheDNS] [redirectionOuNon]
-					
-					try {
-						receiverUDP.setServeurDNS(InetAddress.getByName(args[0]));
-					} catch (UnknownHostException e) {
-						System.err.println("Impossible de résoudre l'adresse " + args[0]);
-						e.printStackTrace();
-						System.exit(-1);
-					}
-					
+					UDPR.setSERVER_DNS(args[0]);
 					f = new File(args[1]);
 					if(f.exists()){
-						receiverUDP.setFichierDNS(args[1]);
+						UDPR.setDNSFile(args[1]);
 					}	
 					else{
 						try {
 							f.createNewFile();
-							receiverUDP.setFichierDNS(args[1]);
+							UDPR.setDNSFile(args[1]);
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
 					}
 					if(args[2].equals("false")){
-						receiverUDP.setRedirectionSeulement(false);
+						UDPR.setRedirectionSeulement(false);
 					}
 					else{
-						receiverUDP.setRedirectionSeulement(true);
+						UDPR.setRedirectionSeulement(true);
 					}
 					// et on lance le thread
-					receiverUDP.start();
+					UDPR.start();
 				}
 				else
 					System.out.println("Un argument est manquant!");

@@ -1,14 +1,34 @@
-package dns;
 import java.util.List;
 
 /**
- * Classe utilitaire pour creer un packet de reponse pour DNS en utilisant le protocol UDP.
- * Cette classe s'occupe de formater le data selon la specification du protocole.
- * 
+ * Class utilitaire pour creer un packet de reponse pour DNS en utilisant le protocol UDP.
+ * Cette classe s'occupe de formater les datas selon la specification du protocole.
  * @author lighta, Simon
- * @contributor Maxime Nadeau (AK83160) - Refactor du code
  */
 public class UDPAnswerPacketCreator {
+	public class Answerpacket {
+		private int longueur; //taille du packet de reponse
+		private byte[] bytes; //packet de reponse
+	};
+	
+	Answerpacket answer_pkt; //peut etre etendu en liste
+	
+	/** 
+	 * Doit etre utiliser apres CreateAnswerPacket
+	 * @return le packet de reponse creer
+	 */
+	public Answerpacket getAnswrpacket(){
+		return answer_pkt;
+	}
+
+	
+	/**
+	 * Constructeur de notre class utilitaire, peutetre utiliser
+	 * pour implementer differente strategy
+	 */
+	private UDPAnswerPacketCreator(){
+		
+	}
 	
 	/** Holder (thread safe) */
 	private static class SingletonHolder
@@ -25,11 +45,12 @@ public class UDPAnswerPacketCreator {
 	
 	/**
 	 * 
-	 * @param Qpacket Datagrame packet de la query DNS
-	 * @param listadrr Adresse IP (v4) a transmettre comme reponse
+	 * @param Qpacket : Datagrame packet de la query DNS
+	 * @param listadrr : Adresse IP (v4) a transmettre comme reponse
 	 * @return tableau de bytes donnant un packet de reponse DNS
 	 */
-	public byte[] createAnswerPacket(byte[] Qpacket,List<String> listadrr){
+	public byte[] CreateAnswerPacket(byte[] Qpacket,List<String> listadrr){
+		Answerpacket answer = new Answerpacket();
 		int ancount = listadrr.size();
 		if(ancount == 0){
 			System.out.println("No adresse to search exiting");
@@ -141,24 +162,39 @@ public class UDPAnswerPacketCreator {
 			byte part4 = (byte)(Integer.parseInt(adr[3]) & 0xff);
 			
 			//IP RDATA
-			tmp_packet[j + 12] = (byte) toUnsignedByte(part1);
-			tmp_packet[j + 13] = (byte) toUnsignedByte(part2);
-			tmp_packet[j + 14] = (byte) toUnsignedByte(part3);
-			tmp_packet[j + 15] = (byte) toUnsignedByte(part4);
+			tmp_packet[j + 12] = (byte) unsignedIP(part1);
+			tmp_packet[j + 13] = (byte) unsignedIP(part2);
+			tmp_packet[j + 14] = (byte) unsignedIP(part3);
+			tmp_packet[j + 15] = (byte) unsignedIP(part4);
 			j+=lenanswer;
 		}
 		
-		byte[] paquetReponse = new byte[j];
-		
-		// Utilisation d'un "Padding" pour remplir le reste du buffer
-		for(i = 0; i < j; i++){
-			paquetReponse[i] = (byte) tmp_packet[i];
+		answer.longueur = j; 
+		answer.bytes = new byte[answer.longueur];
+		for(i = 0; i < answer.longueur; i++){ //remply le reste de merde
+			answer.bytes[i] = (byte) tmp_packet[i];
 		}
 		
-		return paquetReponse;
+//		System.out.println("Identifiant: 0x" + Integer.toHexString(answer.bytes[0] & 0xff) + Integer.toHexString(answer.bytes[1] & 0xff));
+//		System.out.println("parametre: 0x" + Integer.toHexString(answer.bytes[2] & 0xff) + Integer.toHexString(answer.bytes[3] & 0xff));
+//		System.out.println("question: 0x" + Integer.toHexString(answer.bytes[4] & 0xff) + Integer.toHexString(answer.bytes[5] & 0xff));
+//		System.out.println("reponse: 0x" + Integer.toHexString(answer.bytes[6] & 0xff) + Integer.toHexString(answer.bytes[7] & 0xff));
+//		System.out.println("autorite: 0x" + Integer.toHexString(answer.bytes[8] & 0xff) + Integer.toHexString(answer.bytes[9] & 0xff));
+//		System.out.println("info complementaire: 0x" + Integer.toHexString(answer.bytes[10] & 0xff) + Integer.toHexString(answer.bytes[11] & 0xff));
+		
+		
+//		for(i = 0;i < answer.longueur;i++){
+//			if(i%16 == 0){
+//				System.out.println("\r");
+//			}
+//			System.out.print(Integer.toHexString(answer.bytes[i] & 0xff).toString() + " ");
+//		}
+//		System.out.println("\r");
+		
+		return answer.bytes;
 	}
 	
-	private int toUnsignedByte(int data){
+	int unsignedIP(int data){
 		int tmp=0;
 		if( (data&(0x80))==(0x80) )
 			tmp=(data&(0x7F))+128;
