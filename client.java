@@ -9,7 +9,7 @@ public class client {
 		String sentence =null;
 
 		int port = 2016;
-		String server = "10.196.115.175";
+		String server = "127.0.0.1";
 
 		PrintWriter toServerWriter = null;
 		BufferedReader fromServerReader = null;
@@ -21,6 +21,8 @@ public class client {
 		try{
 			if(args.length == 1)
 				server = args[0];
+			else
+				System.out.println("L'adresse par défaut sera utilisé(127.0.0.1)");
 		}
 		catch(NumberFormatException e ){
 			System.err.println("Port invalid");
