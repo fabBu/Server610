@@ -9,7 +9,8 @@ class server extends Thread {
 	public static void main (String argv[]) throws Exception
 	{
 		// Create socket server on port 2016
-		ServerSocket socket = new ServerSocket(2016);
+		int port = 2016;
+		ServerSocket socket = new ServerSocket(port);
 		
 		try {
 			while(true)
